@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, User, BookOpen, LogOut, LayoutDashboard, Settings, Loader2 } from "lucide-react";
+import { GraduationCap, User, BookOpen, LogOut, LayoutDashboard, Settings, Loader2, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import LoginModal from "./LoginModal";
 import { supabase } from "@/lib/supabase"; 
@@ -71,7 +71,15 @@ const Header = () => {
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
-    if (element) element.scrollIntoView({ behavior: 'smooth' });
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      // If we are not on the home page, navigate home first
+      navigate('/');
+      setTimeout(() => {
+        document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
   };
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || "Student";
@@ -100,10 +108,16 @@ const Header = () => {
           </Button>
           
           {user && (
-            <Button variant="ghost" size="sm" className="font-semibold text-primary" onClick={() => navigate('/dashboard')}>
-              <LayoutDashboard className="w-4 h-4 mr-2" />
-              Dashboard
-            </Button>
+            <>
+              <Button variant="ghost" size="sm" className="font-semibold text-primary" onClick={() => navigate('/dashboard')}>
+                <LayoutDashboard className="w-4 h-4 mr-2" />
+                Dashboard
+              </Button>
+              <Button variant="ghost" size="sm" className="font-medium text-slate-600" onClick={() => navigate('/notes')}>
+                <FileText className="w-4 h-4 mr-2" />
+                Notes
+              </Button>
+            </>
           )}
 
           {isAdmin && (

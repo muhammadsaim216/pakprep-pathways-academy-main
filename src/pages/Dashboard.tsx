@@ -40,10 +40,11 @@ const Dashboard = () => {
       }
       setUser(session.user);
 
-      // 2. Fetch Profile (Parallel fetching for speed)
+      // 2. Fetch Profile and Data (Parallel fetching for speed)
+      // Note: We join courses to get the course name for the notes
       const [profileRes, notesRes, quizzesRes, papersRes] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', session.user.id).single(),
-        supabase.from('notes').select('*').order('created_at', { ascending: false }),
+        supabase.from('notes').select('*, courses(name)').order('created_at', { ascending: false }),
         supabase.from('quizzes').select('*').order('created_at', { ascending: false }),
         supabase.from('past_papers').select('*').order('year', { ascending: false })
       ]);
@@ -142,14 +143,25 @@ const Dashboard = () => {
                 <Card key={note.id} className="hover:shadow-md transition-shadow">
                   <CardHeader className="pb-3">
                     <div className="flex justify-between items-start">
-                      <Badge variant="secondary">{note.subject}</Badge>
-                      <Download className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-primary" />
+                      <Badge variant="secondary">{note.courses?.name || "General"}</Badge>
+                      <Download 
+                        className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-primary" 
+                        onClick={() => window.open(note.file_url, '_blank')}
+                      />
                     </div>
                     <CardTitle className="text-lg font-outfit mt-2">{note.title}</CardTitle>
-                    <CardDescription>{note.page_count} pages • {new Date(note.created_at).toLocaleDateString()}</CardDescription>
+                    <CardDescription>
+                      Added on {new Date(note.created_at).toLocaleDateString()}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <Button variant="outline" className="w-full" onClick={() => window.open(note.file_url, '_blank')}>Read Notes</Button>
+                    <Button 
+                      variant="outline" 
+                      className="w-full" 
+                      onClick={() => window.open(note.file_url, '_blank')}
+                    >
+                      Read Notes
+                    </Button>
                   </CardContent>
                 </Card>
               )) : <p className="col-span-full text-center text-muted-foreground py-10">No notes found for your stream.</p>}
