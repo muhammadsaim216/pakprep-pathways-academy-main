@@ -9,6 +9,14 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
 
+// Admin Imports - Updated to reflect the 'pages/admin' directory
+import AdminLayout from "./pages/admin/AdminLayout";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminUniversities from "./pages/AdminUniversities"; 
+import AdminTest from "./pages/admin/AdminTest"; // New Import Added
+
+import UniversitySelector from "./components/UniversitySelector";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -19,10 +27,18 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/select-university" element={<UniversitySelector />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/dashboard" element={<Dashboard />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+
+          {/* Admin Routing Group */}
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminDashboard />} /> 
+            <Route path="universities" element={<AdminUniversities />} />
+            <Route path="tests" element={<AdminTest />} /> {/* Route for MCQ Manager */}
+          </Route>
+
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
