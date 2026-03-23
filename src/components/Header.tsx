@@ -1,37 +1,59 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, User, BookOpen, LogOut, LayoutDashboard, Settings, Loader2, FileText } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { 
+  GraduationCap, 
+  User, 
+  LogOut, 
+  LayoutDashboard, 
+  Settings, 
+  FileText,
+  ChevronDown
+} from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
 import LoginModal from "./LoginModal";
 import { supabase } from "@/lib/supabase"; 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Header = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  
+  // 1. FAST INITIALIZATION: Immediately check for stored auth status
+  const [isAdmin, setIsAdmin] = useState(() => {
+    return localStorage.getItem('is_admin_flag') === 'true';
+  });
+
+  const [hasStoredAuth, setHasStoredAuth] = useState(() => {
+    return Object.keys(localStorage).some(key => key.includes('auth-token'));
+  });
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkUserAndRole = async (currentUser: any) => {
-      if (!currentUser) {
-        setIsAdmin(false);
-        setLoading(false);
-        return;
-      }
-      
+    const syncProfile = async (userId: string) => {
       try {
         const { data, error } = await supabase
           .from('profiles')
           .select('is_admin')
-          .eq('id', currentUser.id)
+          .eq('id', userId)
           .single();
 
         if (!error && data) {
-          setIsAdmin(data.is_admin);
+          const adminStatus = !!data.is_admin;
+          setIsAdmin(adminStatus);
+          localStorage.setItem('is_admin_flag', String(adminStatus));
         }
       } catch (err) {
-        console.error("Error checking admin status:", err);
+        console.error("Profile sync error:", err);
       } finally {
         setLoading(false);
       }
@@ -39,24 +61,29 @@ const Header = () => {
 
     const initAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      await checkUserAndRole(currentUser);
+      if (session?.user) {
+        setUser(session.user);
+        setHasStoredAuth(true);
+        await syncProfile(session.user.id);
+      } else {
+        setLoading(false);
+      }
     };
 
     initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      if (currentUser) {
-        await checkUserAndRole(currentUser);
+      if (session?.user) {
+        setUser(session.user);
+        setHasStoredAuth(true);
+        await syncProfile(session.user.id);
       } else {
+        setUser(null);
         setIsAdmin(false);
+        setHasStoredAuth(false);
+        localStorage.removeItem('is_admin_flag');
         setLoading(false);
       }
-      
-      if (session) setIsLoginModalOpen(false); 
     });
 
     return () => subscription.unsubscribe();
@@ -64,7 +91,9 @@ const Header = () => {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    localStorage.clear();
     setUser(null);
+    setHasStoredAuth(false);
     setIsAdmin(false);
     navigate('/');
   };
@@ -74,7 +103,6 @@ const Header = () => {
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
     } else {
-      // If we are not on the home page, navigate home first
       navigate('/');
       setTimeout(() => {
         document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
@@ -82,12 +110,12 @@ const Header = () => {
     }
   };
 
-  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || "Student";
+  const showProtectedButtons = !!user || hasStoredAuth;
 
   return (
     <header className="bg-background border-b border-border shadow-sm sticky top-0 z-50 w-full">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-        {/* Logo - Always Visible */}
+        {/* Logo Section */}
         <div className="flex items-center gap-3 cursor-pointer shrink-0" onClick={() => navigate('/')}>
           <div className="p-2 bg-gradient-to-r from-primary to-primary-hover rounded-lg">
             <GraduationCap className="w-6 h-6 text-primary-foreground" />
@@ -98,7 +126,7 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Navigation - Always Visible */}
+        {/* Public Navigation */}
         <nav className="hidden md:flex items-center gap-2 lg:gap-4">
           <Button variant="ghost" size="sm" onClick={() => scrollToSection('courses')}>
             Courses
@@ -106,61 +134,77 @@ const Header = () => {
           <Button variant="ghost" size="sm" onClick={() => scrollToSection('practice-tests')}>
             Practice Tests
           </Button>
-          
-          {user && (
-            <>
-              <Button variant="ghost" size="sm" className="font-semibold text-primary" onClick={() => navigate('/dashboard')}>
-                <LayoutDashboard className="w-4 h-4 mr-2" />
-                Dashboard
-              </Button>
-              <Button variant="ghost" size="sm" className="font-medium text-slate-600" onClick={() => navigate('/notes')}>
-                <FileText className="w-4 h-4 mr-2" />
-                Notes
-              </Button>
-            </>
-          )}
-
-          {isAdmin && (
-            <Button variant="secondary" size="sm" className="bg-primary/10 text-primary hover:bg-primary/20" onClick={() => navigate('/admin/universities')}>
-              <Settings className="w-4 h-4 mr-2" />
-              Admin
+          {showProtectedButtons && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className={`font-medium ${location.pathname === '/notes' ? 'text-primary bg-primary/5' : 'text-slate-600'}`}
+              onClick={() => navigate('/notes')}
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Notes
             </Button>
           )}
         </nav>
 
-        {/* Auth Section */}
+        {/* User Actions Section */}
         <div className="flex items-center gap-3">
-          {loading ? (
-            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-          ) : user ? (
-            <div className="flex items-center gap-3">
-              <div className="hidden lg:flex flex-col items-end text-right">
-                <span className="text-sm font-semibold truncate max-w-[100px]">{displayName}</span>
-                <span className="text-[10px] text-primary font-bold uppercase">{isAdmin ? "Admin" : "Student"}</span>
-              </div>
-              <div 
-                className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 cursor-pointer hover:bg-primary/20 transition-colors"
-                onClick={() => navigate('/dashboard')}
-              >
-                <User className="w-5 h-5 text-primary" />
-              </div>
-              <Button variant="outline" size="icon" className="h-9 w-9" onClick={handleLogout}>
-                <LogOut className="w-4 h-4" />
-              </Button>
+          {showProtectedButtons ? (
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 flex items-center justify-center bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-colors">
+                    <User className="w-5 h-5 text-primary" />
+                    <ChevronDown className="absolute -bottom-1 -right-1 w-3 h-3 text-primary bg-background rounded-full border border-border" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">Account</p>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        {user?.email || "User Session"}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate('/dashboard')} className="cursor-pointer">
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    <span>Dashboard</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/notes')} className="cursor-pointer">
+                    <FileText className="mr-2 h-4 w-4" />
+                    <span>Study Notes</span>
+                  </DropdownMenuItem>
+                  
+                  {isAdmin && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => navigate('/admin/universities')} className="cursor-pointer text-primary font-medium">
+                        <Settings className="mr-2 h-4 w-4" />
+                        <span>Admin Panel</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600 focus:text-red-600">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          ) : !loading ? (
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setIsLoginModalOpen(true)}>Login</Button>
+              <Button variant="default" size="sm" onClick={() => scrollToSection('get-started')}>Join</Button>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setIsLoginModalOpen(true)}>
-                Login
-              </Button>
-              <Button variant="default" size="sm" onClick={() => scrollToSection('get-started')}>
-                Join
-              </Button>
-            </div>
+             <div className="h-9 w-24 bg-slate-100 animate-pulse rounded-md" />
           )}
         </div>
       </div>
-
       <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
     </header>
   );

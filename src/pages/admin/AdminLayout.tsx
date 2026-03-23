@@ -1,6 +1,15 @@
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
-// 1. Add 'Settings' to your icon imports
-import { LayoutDashboard, GraduationCap, BookOpen, Users, ChevronLeft, FileText, Settings } from "lucide-react";
+// Added ClipboardList for the Test Type module
+import { 
+  LayoutDashboard, 
+  GraduationCap, 
+  BookOpen, 
+  Users, 
+  ChevronLeft, 
+  FileText, 
+  Settings, 
+  ClipboardList 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const AdminLayout = () => {
@@ -10,10 +19,11 @@ const AdminLayout = () => {
   const menuItems = [
     { icon: LayoutDashboard, label: "Overview", path: "/admin" },
     { icon: GraduationCap, label: "Universities", path: "/admin/universities" },
+    // New Test Types Module for Entry Test Management
+    { icon: ClipboardList, label: "Test Types", path: "/admin/test-types" },
     { icon: BookOpen, label: "Test Content", path: "/admin/tests" },
     { icon: Users, label: "Student Stats", path: "/admin/students" },
     { icon: FileText, label: "Study Notes", path: "/admin/notes" },
-    // 2. Add the Settings link here
     { icon: Settings, label: "Settings", path: "/admin/settings" },
   ];
 

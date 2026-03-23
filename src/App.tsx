@@ -20,7 +20,7 @@ import AdminNotes from "./pages/admin/AdminNotes";
 import StudentNotes from "./pages/StudentNotes";
 import AdminSettings from "./pages/admin/AdminSettings";
 import NotesPage from "./pages/Notes"; // Note: This was named NotesPage
-
+import AdminTestTypes from "./pages/admin/TestTypeAdmin"; // New Test Types Module for Entry Test Management
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -51,6 +51,7 @@ const App = () => (
             <Route path="students" element={<StudentStats />} />
             <Route path="notes" element={<AdminNotes />} />
             <Route path="settings" element={<AdminSettings />} />
+            <Route path="test-types" element={<AdminTestTypes />} />
           </Route>
           
           {/* Catch All */}
