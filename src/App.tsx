@@ -26,35 +26,41 @@ import AdminTestTypes from "./pages/admin/TestTypeAdmin";
 
 const queryClient = new QueryClient();
 
-// --- NEW: Protected Route Component ---
+// --- FIXED: Protected Route with Session Recovery ---
 const ProtectedRoute = ({ children, requireAdmin = false }: { children: React.ReactNode, requireAdmin?: boolean }) => {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
+    // 1. Listen for Auth State Changes (The best way to handle redirects)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
 
-      if (user && requireAdmin) {
-        // Check your profiles table for the admin role
+      if (currentUser && requireAdmin) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('role')
-          .eq('id', user.id)
+          .eq('id', currentUser.id)
           .single();
         
         setIsAdmin(profile?.role === 'admin');
       }
-      setLoading(false);
-    };
-    checkAuth();
+      
+      // Stop loading ONLY after we are sure about the auth state
+      setLoading(false); 
+    });
+
+    return () => subscription.unsubscribe();
   }, [requireAdmin]);
 
+  // IMPORTANT: Show a full-screen loader while checking session
+  // This prevents the "flash" of the login page that causes the refresh loop
   if (loading) return (
-    <div className="h-screen w-screen flex items-center justify-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+    <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-50">
+      <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary"></div>
+      <p className="mt-4 text-slate-500 font-medium">Syncing your session...</p>
     </div>
   );
 
@@ -71,13 +77,11 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          {/* Public Routes */}
           <Route path="/" element={<Index />} />
           <Route path="/select-university" element={<UniversitySelector />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           
-          {/* Protected Student Section */}
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <Dashboard />
@@ -94,7 +98,6 @@ const App = () => (
             </ProtectedRoute>
           } />
 
-          {/* Protected Admin Routing Group */}
           <Route 
             path="/admin" 
             element={
@@ -112,7 +115,6 @@ const App = () => (
             <Route path="test-types" element={<AdminTestTypes />} />
           </Route>
           
-          {/* Catch All */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

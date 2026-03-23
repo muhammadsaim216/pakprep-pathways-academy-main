@@ -27,7 +27,6 @@ const Header = () => {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   
-  // 1. FAST INITIALIZATION: Immediately check for stored auth status
   const [isAdmin, setIsAdmin] = useState(() => {
     return localStorage.getItem('is_admin_flag') === 'true';
   });
@@ -90,12 +89,20 @@ const Header = () => {
   }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    localStorage.clear();
-    setUser(null);
-    setHasStoredAuth(false);
-    setIsAdmin(false);
-    navigate('/');
+    try {
+      // Robust signout with fallback to manual cleanup
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error logging out:", error);
+    } finally {
+      // Force clear all local states and storage even if network fails
+      localStorage.clear();
+      setUser(null);
+      setHasStoredAuth(false);
+      setIsAdmin(false);
+      navigate('/');
+    }
   };
 
   const scrollToSection = (sectionId: string) => {
@@ -153,7 +160,7 @@ const Header = () => {
             <div className="flex items-center gap-2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 flex items-center justify-center bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-colors">
+                  <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 flex items-center justify-center bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-colors focus-visible:ring-0">
                     <User className="w-5 h-5 text-primary" />
                     <ChevronDown className="absolute -bottom-1 -right-1 w-3 h-3 text-primary bg-background rounded-full border border-border" />
                   </Button>
@@ -162,17 +169,18 @@ const Header = () => {
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">Account</p>
-                      <p className="text-xs leading-none text-muted-foreground">
+                      <p className="text-xs leading-none text-muted-foreground truncate">
                         {user?.email || "User Session"}
                       </p>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate('/dashboard')} className="cursor-pointer">
+                  {/* Changed to onSelect for better Radix UI event handling */}
+                  <DropdownMenuItem onSelect={() => navigate('/dashboard')} className="cursor-pointer">
                     <LayoutDashboard className="mr-2 h-4 w-4" />
                     <span>Dashboard</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/notes')} className="cursor-pointer">
+                  <DropdownMenuItem onSelect={() => navigate('/notes')} className="cursor-pointer">
                     <FileText className="mr-2 h-4 w-4" />
                     <span>Study Notes</span>
                   </DropdownMenuItem>
@@ -180,7 +188,7 @@ const Header = () => {
                   {isAdmin && (
                     <>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => navigate('/admin/universities')} className="cursor-pointer text-primary font-medium">
+                      <DropdownMenuItem onSelect={() => navigate('/admin/universities')} className="cursor-pointer text-primary font-medium">
                         <Settings className="mr-2 h-4 w-4" />
                         <span>Admin Panel</span>
                       </DropdownMenuItem>
@@ -188,7 +196,11 @@ const Header = () => {
                   )}
                   
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600 focus:text-red-600">
+                  {/* Robust Logout Integration */}
+                  <DropdownMenuItem 
+                    onSelect={handleLogout} 
+                    className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+                  >
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Log out</span>
                   </DropdownMenuItem>
@@ -197,8 +209,20 @@ const Header = () => {
             </div>
           ) : !loading ? (
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setIsLoginModalOpen(true)}>Login</Button>
-              <Button variant="default" size="sm" onClick={() => scrollToSection('get-started')}>Join</Button>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => navigate('/login')}
+              >
+                Login
+              </Button>
+              <Button 
+                variant="default" 
+                size="sm" 
+                onClick={() => navigate('/signup')}
+              >
+                Join
+              </Button>
             </div>
           ) : (
              <div className="h-9 w-24 bg-slate-100 animate-pulse rounded-md" />

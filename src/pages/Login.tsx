@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { GraduationCap, Eye, EyeOff, BookOpen, Trophy, Users } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -19,26 +20,40 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    // TODO: Replace with actual Supabase authentication
     try {
-      // Simulate login - replace with actual auth logic
-      if (email && password) {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      // UPDATED: Logic to handle confirmed emails that haven't synced locally
+      if (error) {
+        if (error.message.includes("Email not confirmed")) {
+          // Attempt to refresh the session to see if the user is now confirmed
+          const { data: refreshData } = await supabase.auth.refreshSession();
+          if (refreshData.user?.email_confirmed_at) {
+            toast({
+              title: "Login Successful",
+              description: "Session synced. Welcome to Prep Master!",
+            });
+            navigate("/dashboard");
+            return;
+          }
+        }
+        throw error;
+      }
+
+      if (data.user) {
         toast({
           title: "Login Successful",
           description: "Welcome back to Prep Master!",
         });
         navigate("/dashboard");
-      } else {
-        toast({
-          title: "Login Failed",
-          description: "Please enter valid credentials",
-          variant: "destructive",
-        });
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
+        title: "Login Failed",
+        description: error.message || "Please check your credentials",
         variant: "destructive",
       });
     } finally {
@@ -51,7 +66,6 @@ const Login = () => {
       {/* Left Side - Login Form */}
       <div className="flex-1 flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-md">
-          {/* Logo */}
           <div className="text-center mb-8">
             <div className="flex items-center justify-center gap-3 mb-6">
               <div className="p-4 bg-gradient-to-r from-primary to-primary-hover rounded-2xl shadow-lg">
@@ -104,10 +118,8 @@ const Login = () => {
                       required
                       className="font-inter h-12 bg-background/50 border-border/50 focus:bg-background transition-all duration-200 pr-12"
                     />
-                    <Button
+                    <button
                       type="button"
-                      variant="ghost"
-                      size="sm"
                       className="absolute right-0 top-0 h-full px-4 hover:bg-transparent"
                       onClick={() => setShowPassword(!showPassword)}
                     >
@@ -116,7 +128,7 @@ const Login = () => {
                       ) : (
                         <Eye className="h-5 w-5 text-muted-foreground" />
                       )}
-                    </Button>
+                    </button>
                   </div>
                 </div>
 
@@ -173,9 +185,7 @@ const Login = () => {
       <div className="hidden lg:flex flex-1 bg-gradient-to-br from-primary to-primary-hover p-8 text-primary-foreground">
         <div className="flex flex-col justify-center max-w-lg mx-auto">
           <div className="mb-8">
-            <h2 className="text-4xl font-outfit font-bold mb-4">
-              Join 10,000+ Students
-            </h2>
+            <h2 className="text-4xl font-outfit font-bold mb-4">Join 10,000+ Students</h2>
             <p className="text-xl text-primary-foreground/90 font-inter leading-relaxed">
               Master your entrance exams with our comprehensive preparation platform
             </p>
@@ -183,54 +193,26 @@ const Login = () => {
 
           <div className="space-y-6">
             <div className="flex items-start gap-4">
-              <div className="p-3 bg-primary-foreground/20 rounded-xl">
-                <BookOpen className="w-6 h-6" />
-              </div>
+              <div className="p-3 bg-primary-foreground/20 rounded-xl"><BookOpen className="w-6 h-6" /></div>
               <div>
                 <h3 className="font-outfit font-semibold text-lg mb-2">Expert Content</h3>
-                <p className="text-primary-foreground/80 font-inter">
-                  Curated notes and materials by top educators
-                </p>
+                <p className="text-primary-foreground/80 font-inter">Curated notes and materials by top educators</p>
               </div>
             </div>
 
             <div className="flex items-start gap-4">
-              <div className="p-3 bg-primary-foreground/20 rounded-xl">
-                <Trophy className="w-6 h-6" />
-              </div>
+              <div className="p-3 bg-primary-foreground/20 rounded-xl"><Trophy className="w-6 h-6" /></div>
               <div>
                 <h3 className="font-outfit font-semibold text-lg mb-2">Practice Tests</h3>
-                <p className="text-primary-foreground/80 font-inter">
-                  Thousands of questions with detailed explanations
-                </p>
+                <p className="text-primary-foreground/80 font-inter">Thousands of questions with detailed explanations</p>
               </div>
             </div>
 
             <div className="flex items-start gap-4">
-              <div className="p-3 bg-primary-foreground/20 rounded-xl">
-                <Users className="w-6 h-6" />
-              </div>
+              <div className="p-3 bg-primary-foreground/20 rounded-xl"><Users className="w-6 h-6" /></div>
               <div>
                 <h3 className="font-outfit font-semibold text-lg mb-2">Success Community</h3>
-                <p className="text-primary-foreground/80 font-inter">
-                  Connect with fellow students and track progress
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-12 p-6 bg-primary-foreground/10 rounded-2xl">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-primary-foreground/20 rounded-full flex items-center justify-center">
-                <span className="text-lg font-bold">★</span>
-              </div>
-              <div>
-                <p className="font-inter text-sm text-primary-foreground/90">
-                  "Prep Master helped me score 180+ in MDCAT!"
-                </p>
-                <p className="font-inter text-xs text-primary-foreground/70 mt-1">
-                  - Fatima K., MBBS Student
-                </p>
+                <p className="text-primary-foreground/80 font-inter">Connect with fellow students and track progress</p>
               </div>
             </div>
           </div>
